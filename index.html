@@ -1,0 +1,301 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Folder, File, 
+  Maximize2, Minimize2, X, 
+  Settings, Network, 
+  MessageSquare, 
+  FolderOpen, 
+  FileText, 
+  Music, 
+  Video, 
+  Chrome 
+} from 'lucide-react';
+
+// Âm thanh Windows 98
+const windowsSounds = {
+  startup: '/windows98-startup.mp3',
+  click: '/windows98-click.mp3',
+  error: '/windows98-error.mp3'
+};
+
+// Danh sách ứng dụng và thư mục
+const desktopItems = [
+  { id: 1, name: 'My Computer', icon: <Folder />, type: 'folder' },
+  { id: 2, name: 'Recycle Bin', icon: <Folder color="red" />, type: 'bin' },
+  { id: 3, name: 'Internet Explorer', icon: <Chrome />, type: 'browser' },
+  { id: 4, name: 'Notepad', icon: <FileText />, type: 'text' },
+  { id: 5, name: 'Media Player', icon: <Video />, type: 'media' },
+  { id: 6, name: 'My Documents', icon: <Folder color="blue" />, type: 'folder' }
+];
+
+// Các ứng dụng có thể mở
+const ApplicationContent = {
+  'My Computer': () => (
+    <div className="p-4">
+      <h2 className="font-bold mb-2">My Computer</h2>
+      <div className="grid grid-cols-3 gap-2">
+        <div className="border p-2 flex items-center">
+          <Folder className="mr-2" /> Local Disk (C:)
+        </div>
+        <div className="border p-2 flex items-center">
+          <Network className="mr-2" /> Network
+        </div>
+      </div>
+    </div>
+  ),
+  'Notepad': () => {
+    const [text, setText] = useState('');
+    return (
+      <textarea 
+        className="w-full h-full p-2 font-mono"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Start typing..."
+      />
+    );
+  },
+  'Internet Explorer': () => (
+    <div className="p-4">
+      <input 
+        type="text" 
+        placeholder="Enter URL" 
+        className="w-full border p-2 mb-2"
+      />
+      <div className="bg-gray-100 h-64 flex items-center justify-center">
+        Trình duyệt đang được mô phỏng
+      </div>
+    </div>
+  )
+};
+
+// Component Cửa sổ
+const Window = ({ title, icon, onClose, children, onMinimize }) => {
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [position, setPosition] = useState({ x: 100, y: 100 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef(null);
+
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    const startX = e.clientX - position.x;
+    const startY = e.clientY - position.y;
+
+    const handleMouseMove = (moveEvent) => {
+      setPosition({
+        x: moveEvent.clientX - startX,
+        y: moveEvent.clientY - startY
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  return (
+    <div 
+      ref={dragRef}
+      className={`absolute bg-white border-2 border-gray-400 shadow-lg ${
+        isMaximized ? 'w-full h-full top-0 left-0' : 'w-96 h-72'
+      }`}
+      style={{
+        left: position.x,
+        top: position.y,
+        zIndex: 100,
+        borderStyle: 'outset'
+      }}
+    >
+      {/* Thanh tiêu đề */}
+      <div 
+        className="bg-gradient-to-r from-blue-500 to-blue-600 text-white flex justify-between p-1 cursor-move"
+        onMouseDown={handleMouseDown}
+      >
+        <div className="flex items-center">
+          {icon}
+          <span className="ml-2">{title}</span>
+        </div>
+        <div className="flex space-x-1">
+          <button 
+            className="hover:bg-blue-700 p-1"
+            onClick={() => {
+              setIsMaximized(!isMaximized);
+              onMinimize?.();
+            }}
+          >
+            {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </button>
+          <button 
+            className="hover:bg-red-600 p-1"
+            onClick={onClose}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      </div>
+      
+      {/* Nội dung cửa sổ */}
+      <div className="p-2 overflow-auto h-[calc(100%-32px)]">
+        {children}
+      </div>
+    </div>
+  );
+};
+
+const Windows98Desktop = () => {
+  const [openWindows, setOpenWindows] = useState([]);
+  const [minimizedWindows, setMinimizedWindows] = useState([]);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [startMenuOpen, setStartMenuOpen] = useState(false);
+
+  // Nhạc nền
+  const playSound = (soundType) => {
+    new Audio(windowsSounds[soundType]).play();
+  };
+
+  useEffect(() => {
+    // Phát âm thanh khởi động
+    playSound('startup');
+
+    // Cập nhật đồng hồ
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const openWindow = (item) => {
+    // Kiểm tra nếu cửa sổ đã mở
+    if (!openWindows.find(w => w.name === item.name)) {
+      playSound('click');
+      const newWindow = {
+        ...item,
+        id: Date.now()
+      };
+      setOpenWindows([...openWindows, newWindow]);
+    }
+  };
+
+  const closeWindow = (id) => {
+    playSound('error');
+    setOpenWindows(openWindows.filter(window => window.id !== id));
+  };
+
+  const minimizeWindow = (window) => {
+    setMinimizedWindows([...minimizedWindows, window]);
+    setOpenWindows(openWindows.filter(w => w.id !== window.id));
+  };
+
+  const restoreWindow = (window) => {
+    setOpenWindows([...openWindows, window]);
+    setMinimizedWindows(minimizedWindows.filter(w => w.id !== window.id));
+  };
+
+  return (
+    <div 
+      className="h-screen w-screen bg-cover relative overflow-hidden select-none"
+      style={{
+        backgroundImage: 'url(/api/placeholder/1920/1080)',
+        backgroundColor: '#008080'
+      }}
+    >
+      {/* Biểu tượng Desktop */}
+      <div className="absolute top-0 left-0 p-4 grid grid-cols-4 gap-4">
+        {desktopItems.map(item => (
+          <div 
+            key={item.id} 
+            className="flex flex-col items-center cursor-pointer hover:bg-blue-200/30 p-2 rounded"
+            onDoubleClick={() => openWindow(item)}
+          >
+            {item.icon}
+            <span className="text-xs text-white font-bold">{item.name}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Các cửa sổ đang mở */}
+      {openWindows.map(window => (
+        <Window 
+          key={window.id} 
+          title={window.name} 
+          icon={window.icon}
+          onClose={() => closeWindow(window.id)}
+          onMinimize={() => minimizeWindow(window)}
+        >
+          {ApplicationContent[window.name] ? ApplicationContent[window.name]() : (
+            <div className="p-4">
+              <h2>{window.name} Content</h2>
+              <p>Ứng dụng đang được phát triển</p>
+            </div>
+          )}
+        </Window>
+      ))}
+
+      {/* Các cửa sổ đã thu nhỏ */}
+      {minimizedWindows.length > 0 && (
+        <div className="absolute bottom-12 left-0 flex space-x-2 p-2 bg-gray-200 border-t border-gray-400">
+          {minimizedWindows.map(window => (
+            <button 
+              key={window.id}
+              className="flex items-center bg-gray-300 px-2 py-1 hover:bg-gray-400"
+              onClick={() => restoreWindow(window)}
+            >
+              {window.icon}
+              <span className="ml-2">{window.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Menu Start */}
+      {startMenuOpen && (
+        <div className="absolute bottom-10 left-2 bg-gray-200 border-2 border-gray-400 w-64 p-2">
+          <div className="font-bold mb-2">Windows 98</div>
+          <button className="w-full text-left hover:bg-blue-200 p-1">
+            Programs
+          </button>
+          <button className="w-full text-left hover:bg-blue-200 p-1">
+            Documents
+          </button>
+          <button className="w-full text-left hover:bg-blue-200 p-1">
+            Settings
+          </button>
+          <button className="w-full text-left hover:bg-blue-200 p-1">
+            Find
+          </button>
+          <button className="w-full text-left hover:bg-blue-200 p-1">
+            Help
+          </button>
+          <button className="w-full text-left hover:bg-blue-200 p-1">
+            Run
+          </button>
+          <button className="w-full text-left hover:bg-blue-200 p-1">
+            Shut Down
+          </button>
+        </div>
+      )}
+
+      {/* Thanh Taskbar */}
+      <div className="absolute bottom-0 left-0 right-0 bg-gray-200 h-10 flex items-center justify-between border-t border-gray-400">
+        <button 
+          className="bg-gray-300 px-4 py-1 ml-2 font-bold border-2 border-gray-400"
+          onClick={() => setStartMenuOpen(!startMenuOpen)}
+        >
+          Start
+        </button>
+        <div className="flex-grow"></div>
+        <div className="mr-2 flex items-center space-x-2">
+          <div className="bg-gray-300 px-2 py-1 rounded border border-gray-400">
+            {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Windows98Desktop;
